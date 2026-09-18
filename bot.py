@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
 from discord.ext import commands
 
-# 1. Render Port-Binding Dummy Server
+# 1. Render Port-Binding Dummy Server (Keeps the service awake 24/7)
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -13,14 +13,14 @@ class SimpleHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Yazoni's Right Hand is online and active!")
     
     def log_message(self, format, *args):
-        return  # Suppress console log spam
+        return  # Suppresses console HTTP log spam
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
-# Spin up the web server thread immediately
+# Spin up the background web server thread immediately
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # 2. Discord Intents Setup
@@ -34,12 +34,18 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name} (ID: {bot.user.id})")
-    print("Yazoni's Right Hand is locked, loaded, and online!")
+    print("Yazoni's Right Hand is locked, loaded, and fully online!")
 
 async def main():
     async with bot:
         # Load all cogs safely with error catching
-        extensions = ["cogs.companion", "cogs.architect", "cogs.scout"]
+        extensions = [
+            "cogs.companion", 
+            "cogs.architect", 
+            "cogs.scout", 
+            "cogs.vision", 
+            "cogs.research"
+        ]
         
         for ext in extensions:
             try:

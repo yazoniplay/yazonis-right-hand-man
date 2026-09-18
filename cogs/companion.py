@@ -7,12 +7,8 @@ from google.genai import types
 class Companion(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Initialize the Google GenAI client using the active SDK
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        # Using gemini-3.5-flash-lite as configured
-        self.model_name = "gemini-3.5-flash-lite"
-        
-        # Store chat sessions per channel/user for memory
+        self.model_name = "gemini-3.6-flash"
         self.chat_sessions = {}
 
     def get_or_create_chat(self, thread_id):
@@ -23,30 +19,40 @@ class Companion(commands.Cog):
                     system_instruction=(
                         "You are Yazoni's Right Hand, a personalized, ultra-loyal 24/7 AI companion "
                         "and server manager built exclusively for Yazan. Talk naturally, keep it sharp, "
-                        "and act like a true right-hand man."
+                        "and act like a true right-hand man who can see and analyze any images he sends you."
                     )
                 )
             )
         return self.chat_sessions[thread_id]
 
-    # Change from a command to an event listener that triggers on every message
     @commands.Cog.listener()
     async def on_message(self, message):
-        # Ignore messages sent by the bot itself
         if message.author == self.bot.user:
             return
 
-        # Optional: Restrict this to only reply to you (using your username or user ID if you want)
-        # For now, it will respond to any message that doesn't start with command prefixes like '!'
         if message.content.startswith("!"):
-            return # Let standard commands like !buildserver or !scout work normally
+            return # Let standard commands like !buildserver work normally
 
-        # Automatically show typing status while generating response
         async with message.channel.typing():
             try:
                 chat = self.get_or_create_chat(message.channel.id)
-                response = chat.send_message(message.content)
+                
+                # Check if an image or file is attached to the message
+                contents = []
+                if message.content:
+                    contents.append(message.content)
+                else:
+                    contents.append("What do you see in this image?")
+
+                for attachment in message.attachments:
+                    if any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']):
+                        image_bytes = await attachment.read()
+                        mime_type = attachment.content_type or "image/jpeg"
+                        contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+
+                response = chat.send_message(contents)
                 await message.reply(response.text)
+                
             except Exception as e:
                 await message.channel.send(f"❌ Companion error: `{e}`")
 

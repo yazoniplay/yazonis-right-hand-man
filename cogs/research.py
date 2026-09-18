@@ -8,15 +8,16 @@ class Research(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        # Updated to the active model specified by the API error
+        self.model_name = "gemini-3.6-flash"
 
     @commands.command(name="research", aliases=["search", "google"])
     async def research(self, ctx, *, query: str):
         """Searches the live internet autonomously using Google Search grounding."""
         async with ctx.typing():
             try:
-                # Ask Gemini with Google Search tool enabled
                 response = self.client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model=self.model_name,
                     contents=query,
                     config=types.GenerateContentConfig(
                         tools=[types.Tool(google_search=types.GoogleSearch())],

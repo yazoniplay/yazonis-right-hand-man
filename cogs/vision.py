@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 import discord
 from discord.ext import commands
 from google import genai
@@ -11,25 +12,32 @@ class Vision(commands.Cog):
 
     @commands.command(name="image", aliases=["draw", "imagine"])
     async def image(self, ctx, *, prompt: str):
-        """Generates an image based on a text prompt."""
+        """Generates an image using Gemini's image output modality."""
         async with ctx.typing():
             try:
-                # Using Imagen 3 or the appropriate image generation model via GenAI SDK
-                result = self.client.models.generate_images(
-                    model='imagen-3.0-generate-002',
-                    prompt=prompt,
-                    config=types.GenerateImagesConfig(
-                        number_of_images=1,
-                        output_mime_type="image/jpeg",
-                        aspect_ratio="1:1"
-                    )
+                # Use gemini-2.5-flash-image with IMAGE response modality
+                response = self.client.models.generate_content(
+                    model='gemini-2.5-flash-image',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(
+                            aspect_ratio="1:1",
+                        ),
+                    ),
                 )
                 
-                for generated_image in result.generated_images:
-                    image_bytes = generated_image.image.image_bytes
-                    # Send the image file back to Discord
-                    file = discord.File(fp=BytesIO(image_bytes), filename="generated.jpg")
-                    await ctx.send(f"🎨 **Generated for you:** `{prompt}`", file=file)
+                image_found = False
+                for part in response.parts:
+                    if part.inline_data:
+                        image_bytes = part.inline_data.data
+                        file = discord.File(fp=BytesIO(image_bytes), filename="generated.jpg")
+                        await ctx.send(f"🎨 **Generated for you:** `{prompt}`", file=file)
+                        image_found = True
+                        break
+                
+                if not image_found:
+                    await ctx.send("❌ The model didn't return an image for that prompt.")
                     
             except Exception as e:
                 await ctx.send(f"❌ Image generation error: `{e}`")

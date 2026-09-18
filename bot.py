@@ -5,29 +5,29 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
 from discord.ext import commands
 
-# 1. Dummy HTTP Server to satisfy Render's Web Service port-binding requirement
+# 1. Render Port-Binding Dummy Server
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Yazoni's Right Hand is online and active!")
     
-    # Suppress server log spam in the console
     def log_message(self, format, *args):
-        return
+        return  # Suppress console log spam
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
-# Start the dummy web server in the background before the bot initializes
+# Spin up the web server thread immediately
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# 2. Setup Discord Bot Intents
+# 2. Discord Intents Setup
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -38,13 +38,16 @@ async def on_ready():
 
 async def main():
     async with bot:
-        # Load cogs
-        await bot.load_extension("cogs.companion")
+        # Load all cogs safely with error catching
+        extensions = ["cogs.companion", "cogs.architect", "cogs.scout"]
         
-        # Uncomment these once you create architect.py and scout.py
-        # await bot.load_extension("cogs.architect")
-        # await bot.load_extension("cogs.scout")
-        
+        for ext in extensions:
+            try:
+                await bot.load_extension(ext)
+                print(f"Successfully loaded extension: {ext}")
+            except Exception as e:
+                print(f"Failed to load extension {ext}: {e}")
+
         token = os.getenv("DISCORD_TOKEN")
         if not token:
             print("ERROR: DISCORD_TOKEN environment variable not found!")

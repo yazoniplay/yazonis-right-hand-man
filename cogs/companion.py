@@ -1,4 +1,5 @@
 import os
+import asyncio
 import discord
 from discord.ext import commands
 from google import genai
@@ -37,7 +38,6 @@ class Companion(commands.Cog):
             try:
                 chat = self.get_or_create_chat(message.channel.id)
                 
-                # Check if an image or file is attached to the message
                 contents = []
                 if message.content:
                     contents.append(message.content)
@@ -50,11 +50,24 @@ class Companion(commands.Cog):
                         mime_type = attachment.content_type or "image/jpeg"
                         contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
 
-                response = chat.send_message(contents)
-                await message.reply(response.text)
+                # Retry loop to handle temporary 503 high demand errors gracefully
+                response = None
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = chat.send_message(contents)
+                        break
+                    except Exception as api_err:
+                        if "503" in str(api_err) and attempt < max_retries - 1:
+                            await asyncio.sleep(2 * (attempt + 1)) # Wait 2s, then 4s before retrying
+                            continue
+                        raise api_err
+
+                if response and response.text:
+                    await message.reply(response.text)
                 
             except Exception as e:
-                await message.channel.send(f"❌ Companion error: `{e}`")
+                await message.channel.send(f"❌ Companion error (high demand): `{e}`. Try sending your message again in a moment.")
 
 async def setup(bot):
     await bot.add_cog(Companion(bot))

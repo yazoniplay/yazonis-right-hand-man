@@ -9,8 +9,8 @@ class Companion(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        # Updated to the current active model identifier
-        self.model_name = "gemini-3.6-flash"
+        # Using flash-lite for high-volume, continuous messaging & vision support
+        self.model_name = "gemini-3.5-flash-lite"
         self.chat_sessions = {}
 
     def get_or_create_chat(self, thread_id):

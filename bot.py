@@ -1,41 +1,56 @@
 import os
 import asyncio
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
-# Load local .env if it exists (for local testing), otherwise OS environment variables take over
-load_dotenv()
+# 1. Dummy HTTP Server to satisfy Render's Web Service port-binding requirement
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Yazoni's Right Hand is online and active!")
+    
+    # Suppress server log spam in the console
+    def log_message(self, format, *args):
+        return
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server.serve_forever()
 
+# Start the dummy web server in the background before the bot initializes
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+# 2. Setup Discord Bot Intents
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
+intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"-----------------------------------")
-    print(f"Logged in as: {bot.user.name} (ID: {bot.user.id})")
-    print(f"Status: Online and ready for commands.")
-    print(f"-----------------------------------")
-
-async def load_extensions():
-    for filename in os.listdir("./cogs"):
-        if filename.endswith(".py"):
-            cog_name = filename[:-3]
-            try:
-                await bot.load_extension(f"cogs.{cog_name}")
-                print(f"[Loaded Cog]: {cog_name}")
-            except Exception as e:
-                print(f"[Failed to load cog {cog_name}]: {e}")
+    print(f"Logged in as {bot.user.name} (ID: {bot.user.id})")
+    print("Yazoni's Right Hand is locked, loaded, and online!")
 
 async def main():
     async with bot:
-        await load_extensions()
-        await bot.start(TOKEN)
+        # Load cogs
+        await bot.load_extension("cogs.companion")
+        
+        # Uncomment these once you create architect.py and scout.py
+        # await bot.load_extension("cogs.architect")
+        # await bot.load_extension("cogs.scout")
+        
+        token = os.getenv("DISCORD_TOKEN")
+        if not token:
+            print("ERROR: DISCORD_TOKEN environment variable not found!")
+            return
+        
+        await bot.start(token)
 
 if __name__ == "__main__":
     asyncio.run(main())

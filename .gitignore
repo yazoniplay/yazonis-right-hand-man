@@ -1,0 +1,12 @@
+# Environment configuration file (contains secret tokens)
+.env
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments if you create one locally
+venv/
+env/
+.venv/
